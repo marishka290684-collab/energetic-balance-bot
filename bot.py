@@ -342,6 +342,28 @@ async def health(request: web.Request) -> web.Response:
     return web.Response(text="Telegram bot is running.")
 
 
+@web.middleware
+async def log_webhook_requests(request: web.Request, handler):
+    """Log webhook arrival and response without recording message contents or secrets."""
+    if request.path == WEBHOOK_PATH:
+        request_id = request.headers.get("CF-Ray", "not-provided")
+        logging.info(
+            "Incoming Telegram webhook: method=%s path=%s cf_ray=%s",
+            request.method, request.path, request_id,
+        )
+        try:
+            response = await handler(request)
+        except Exception:
+            logging.exception("Telegram webhook handler failed: cf_ray=%s", request_id)
+            raise
+        logging.info(
+            "Telegram webhook response: status=%s cf_ray=%s",
+            response.status, request_id,
+        )
+        return response
+    return await handler(request)
+
+
 def main():
     if not BOT_TOKEN:
         raise RuntimeError(
@@ -355,7 +377,7 @@ def main():
         )
 
     bot = Bot(token=BOT_TOKEN)
-    app = web.Application()
+    app = web.Application(middlewares=[log_webhook_requests])
     app.router.add_get("/", health)
 
     webhook_handler = SimpleRequestHandler(
@@ -371,7 +393,7 @@ def main():
         await bot.set_webhook(
             url=webhook_url,
             secret_token=WEBHOOK_SECRET,
-            drop_pending_updates=True,
+            drop_pending_updates=False,
         )
         logging.info("Telegram webhook configured: %s", webhook_url)
 
