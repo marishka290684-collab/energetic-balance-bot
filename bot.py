@@ -120,7 +120,7 @@ def question_keyboard(index: int, selected: set[str]):
     kb = InlineKeyboardBuilder()
     for code, label in q["options"]:
         mark = "☑️ " if code in selected else "▫️ "
-        kb.button(text=mark + label, callback_data=f"t:{index}:{code}")
+        kb.button(text=mark + code, callback_data=f"t:{index}:{code}")
     kb.adjust(1)
     kb.button(text="🧹 Снять выбор", callback_data=f"clear:{index}")
     nav = []
@@ -139,11 +139,14 @@ def question_keyboard(index: int, selected: set[str]):
 def render_question(index: int, answers: list[set[str]]) -> str:
     q = QUESTIONS[index]
     chosen = answers[index]
+    options_text = "\n\n" + "\n".join(
+        f"<b>{code})</b> {label}" for code, label in q["options"]
+    )
     if chosen:
-        selected_text = "\n\n<i>Выбрано: " + ", ".join(chosen) + "</i>"
+        selected_text = "\n\n<i>Выбрано: " + ", ".join(sorted(chosen)) + "</i>"
     else:
-        selected_text = "\n\n<i>Пока ничего не выбрано. Можно отметить несколько вариантов.</i>"
-    return f"🌿 <b>{q['title']}</b>\n\n{q['question']}{selected_text}"
+        selected_text = "\n\n<i>Отметьте один или несколько вариантов кнопками ниже.</i>"
+    return f"🌿 <b>{q['title']}</b>\n\n{q['question']}{options_text}{selected_text}"
 
 
 def assess_block(question_indices, answers):
@@ -349,7 +352,7 @@ def second_question_keyboard(index: int, selected: str | None):
     kb = InlineKeyboardBuilder()
     for code, label in q["options"]:
         mark = "☑️ " if code == selected else "▫️ "
-        kb.button(text=f"{mark}{code}) {label}", callback_data=f"q2:{index}:{code}")
+        kb.button(text=f"{mark}{code}", callback_data=f"q2:{index}:{code}")
     kb.adjust(1)
 
     if index > 0:
